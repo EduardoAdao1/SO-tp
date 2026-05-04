@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include "queue.h"
 
-// Inicializa a fila de pedidos
 void init_queue(Queue *queue)
 {
     queue->head = NULL;
@@ -9,10 +8,8 @@ void init_queue(Queue *queue)
     queue->size = 0;
 }
 
-// Insere um pedido no fim da fila
 int enqueue(Queue *queue, Msg m, struct timeval t)
 {
-    // Criamos um novo nó da fila com o pedido e a hora de submissão
     Node *new_node = malloc(sizeof(Node));
 
     if (new_node == NULL)
@@ -22,7 +19,6 @@ int enqueue(Queue *queue, Msg m, struct timeval t)
     new_node->hora_submit = t;
     new_node->next = NULL;
 
-    // Se a fila estiver vazia, o novo nó passa a ser o início e o fim
     if (queue->head == NULL)
     {
         queue->head = new_node;
@@ -30,7 +26,6 @@ int enqueue(Queue *queue, Msg m, struct timeval t)
     }
     else
     {
-        // Se a fila não estiver vazia, adicionamos o novo nó ao fim
         queue->tail->next = new_node;
         queue->tail = new_node;
     }
@@ -40,44 +35,93 @@ int enqueue(Queue *queue, Msg m, struct timeval t)
     return 1;
 }
 
-// Remove o primeiro pedido da fila
-int dequeue(Queue *queue, Msg *m, struct timeval *t_submit)
+static int remove_node(Queue *queue, Node *prev, Node *curr, Msg *m, struct timeval *t_submit)
 {
-    // Se a fila estiver vazia não há nada a remover
-    if (queue->head == NULL)
+    if (curr == NULL)
         return 0;
 
-    // Guardamos o primeiro nó da fila
-    Node *temp = queue->head;
-
-    // Copiamos os dados do pedido removido
     if (m != NULL)
-        *m = temp->pedido;
+        *m = curr->pedido;
 
     if (t_submit != NULL)
-        *t_submit = temp->hora_submit;
+        *t_submit = curr->hora_submit;
 
-    // Avançamos o início da fila
-    queue->head = temp->next;
+    if (prev != NULL)
+        prev->next = curr->next;
+    else
+        queue->head = curr->next;
 
-    // Se a fila ficou vazia, o fim também passa a NULL
-    if (queue->head == NULL)
-        queue->tail = NULL;
+    if (queue->tail == curr)
+        queue->tail = prev;
 
-    free(temp);
+    free(curr);
 
     queue->size--;
+
+    if (queue->size == 0)
+    {
+        queue->head = NULL;
+        queue->tail = NULL;
+    }
 
     return 1;
 }
 
-// Verifica se a fila está vazia
+int dequeue(Queue *queue, Msg *m, struct timeval *t_submit)
+{
+    if (queue->head == NULL)
+        return 0;
+
+    return remove_node(queue, NULL, queue->head, m, t_submit);
+}
+
+static int dequeue_round_robin(Queue *queue, int *last_user, Msg *m, struct timeval *t_submit)
+{
+    if (queue->head == NULL)
+        return 0;
+
+    Node *curr = queue->head;
+    Node *prev = NULL;
+
+    while (curr != NULL)
+    {
+        if (*last_user == -1 || curr->pedido.user_id != *last_user)
+        {
+            int user = curr->pedido.user_id;
+            int ok = remove_node(queue, prev, curr, m, t_submit);
+
+            if (ok)
+                *last_user = user;
+
+            return ok;
+        }
+
+        prev = curr;
+        curr = curr->next;
+    }
+
+    // Se só houver pedidos do mesmo utilizador, o RR cai para FIFO.
+    int ok = dequeue(queue, m, t_submit);
+
+    if (ok && m != NULL)
+        *last_user = m->user_id;
+
+    return ok;
+}
+
+int dequeue_policy(Queue *queue, int policy, int *last_user, Msg *m, struct timeval *t_submit)
+{
+    if (policy == POLICY_RR)
+        return dequeue_round_robin(queue, last_user, m, t_submit);
+
+    return dequeue(queue, m, t_submit);
+}
+
 int is_empty(Queue *queue)
 {
     return queue->head == NULL;
 }
 
-// Liberta a memória usada pela fila
 void free_queue(Queue *queue)
 {
     Node *curr = queue->head;

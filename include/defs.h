@@ -5,30 +5,34 @@
 #include <sys/types.h>
 
 #define SERVER "Fifo_Server"
+
 #define TYPE_EXEC 1
 #define TYPE_STATUS 2
 #define TYPE_STOP 3
 #define TYPE_DONE 4
+
+#define RESP_REJECTED 0
+#define RESP_AUTHORIZED 1
+#define RESP_SHUTDOWN_DONE 2
+
 #define MAX_COMMAND 256
 
-// Estrutura de uma mensagem/pedido
 typedef struct
 {
-    pid_t pid;                 // Pid do runner para o pipe de resposta
-    int type;                  // Tipo da mensagem
-    int user_id;               // Id do user
-    int command_id;            // Id único do comando
-    char command[MAX_COMMAND]; // Comando a executar
+    pid_t pid;
+    int type;
+    int user_id;
+    int command_id;
+    char command[MAX_COMMAND];
 } Msg;
 
-// Estrutura para guardar os dados dos comandos em execução
 typedef struct inicio
 {
-    pid_t pid;                 // Pid do runner
-    int user_id;               // Id do user
-    int command_id;            // Id único do comando
-    struct timeval t_submit;   // Hora em que o comando foi submetido
-    char command[MAX_COMMAND]; // Comando em execução
+    pid_t pid;
+    int user_id;
+    int command_id;
+    struct timeval t_submit;
+    char command[MAX_COMMAND];
     struct inicio *next;
 } Inicio;
 
