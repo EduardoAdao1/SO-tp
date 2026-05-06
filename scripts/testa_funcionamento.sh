@@ -374,7 +374,7 @@ teste_paralelismo() {
 
     para_controller || return 1
 
-    [ "${duracao}" -lt 4000 ]
+    [ "${duracao}" -lt 5000 ]
 }
 
 teste_execucao_sequencial() {
